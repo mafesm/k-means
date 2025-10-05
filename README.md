@@ -4,10 +4,6 @@
 
 Esta pasta implementa a **Etapa 0** do trabalho de K-means 1D, com a versão sequencial do algoritmo que servirá como **baseline** para comparação com as implementações paralelizadas nas próximas etapas.
 
-O algoritmo K-means realiza agrupamento de dados unidimensionais através de um processo iterativo de:
-- **Assignment**: atribuição de pontos aos centróides mais próximos
-- **Update**: atualização dos centróides baseado nos pontos atribuídos
-
 ## Estrutura
 
 ```
