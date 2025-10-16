@@ -3,7 +3,7 @@
 CC = gcc
 CFLAGS = -O2 -std=c99 -lm
 PROG = kmeans_1d_naive.exe
-FONTE = kmeans_1d_naive.c
+FONTE = serial/kmeans_1d_naive.c
 
 RESULTS_DIR = resultados
 
@@ -49,7 +49,7 @@ teste_grande: $(PROG) dados_grandes
 teste_todos: teste_pequeno teste_medio teste_grande
 	@echo " >> todos os testes executados"
 
-graficos: 
+graficos:
 	@echo " >> gerando graficos a partir dos resultados..."
 	python scripts/gerar_graficos.py
 
