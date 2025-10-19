@@ -155,19 +155,46 @@ static void update_step_1d(const double *X, double *C, const int *assign, int N,
         fprintf(stderr, "Sem memoria no update\n");
         exit(1);
     }
-    for (int i = 0; i < N; i++)
+
+    #pragma omp parallel
     {
-        int a = assign[i];
-        cnt[a] += 1;
-        sum[a] += X[i];
+        // We're creating local copies of the arrays that'll be used to perform the partial
+        // calculations inside a thread
+        double *local_sum = (double *)calloc((size_t)K, sizeof(double));
+        int *local_cnt = (int *)calloc((size_t)K, sizeof(int));
+
+        // Executing the partial sums, notice the lack of thread IDs since we instantiating an array
+        // locally for every thread
+        #pragma omp for
+        for (int i = 0; i < N; i++)
+        {
+            int a = assign[i];
+            local_cnt[a] += 1;
+            local_sum[a] += X[i];
+        }
+
+        // Combine the partial sums so far (critical since we're accessing shared variables)
+        #pragma omp critical
+        {
+            for (int c = 0; c < K; c++)
+            {
+                cnt[c] += local_cnt[c];
+                sum[c] += local_sum[c];
+            }
+        }
+
+        free(local_sum);
+        free(local_cnt);
     }
+
     for (int c = 0; c < K; c++)
     {
         if (cnt[c] > 0)
             C[c] = sum[c] / (double)cnt[c];
         else
-            C[c] = X[0]; /* simples: cluster vazio recebe o primeiro */
+            C[c] = X[0];
     }
+
     free(sum);
     free(cnt);
 }

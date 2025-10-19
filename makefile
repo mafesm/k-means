@@ -1,8 +1,9 @@
 # Makefile para K-means 1D Sequencial - Etapa 0
 
 CC = gcc
-CFLAGS = -O2 -std=c99 -lm
+CFLAGS = -O2 -std=c99 -lm -fopenmp
 PROG = kmeans_1d_naive.exe
+# FONTE = openmp/kmeans_1d_naive.c
 FONTE = serial/kmeans_1d_naive.c
 
 RESULTS_DIR = resultados
