@@ -3,21 +3,21 @@ RESUMO DOS RESULTADOS - ETAPA 0
 
 Pequeno
 (10k, 4):
-  Tempo: 3.0 ms
+  Tempo: 6.0 ms
   SSE: 5602287.15
   Iteracoes: 9
   N=10000, K=4
 
 Medio
 (100k, 8):
-  Tempo: 5.0 ms
+  Tempo: 0.0 ms
   SSE: 785489.51
   Iteracoes: 5
   N=100000, K=8
 
 Grande
 (1M, 16):
-  Tempo: 131.0 ms
+  Tempo: 132.0 ms
   SSE: 253407770.16
   Iteracoes: 19
   N=1000000, K=16

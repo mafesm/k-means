@@ -4,8 +4,6 @@
 #include <math.h>
 #include <time.h>
 #include <omp.h>
-#include <ctype.h>
-
 
 /* ---------- util CSV 1D: cada linha tem 1 numero ---------- */
 static int count_rows(const char *path)
