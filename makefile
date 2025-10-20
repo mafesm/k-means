@@ -4,13 +4,24 @@ CC = gcc
 CFLAGS = -O2 -std=c99 -lm -fopenmp
 PROG = kmeans_1d_naive.exe
 # FONTE = openmp/kmeans_1d_naive.c
-FONTE = serial/kmeans_1d_naive.c
+FONTE = kmeans_1d_naive.c
+
+TEMP_DIR = out
 
 RESULTS_DIR = resultados
 
-$(PROG): $(FONTE)
-	$(CC) -o $(PROG) $(FONTE) $(CFLAGS)
+FILES := serial openmp
+
+openmp: openmp/$(FONTE)
+	@if not exist $(RESULTS_DIR) mkdir out
+	$(CC) -o $(PROG) openmp/$(FONTE) $(CFLAGS)
 	@echo " >> Compilado: $(PROG)"
+
+serial: serial/$(FONTE)
+	@if not exist $(RESULTS_DIR) mkdir out
+	$(CC) -o $(PROG) serial/$(FONTE) $(CFLAGS)
+	@echo " >> Compilado: $(PROG)"
+
 
 $(RESULTS_DIR):
 	@if not exist $(RESULTS_DIR) mkdir $(RESULTS_DIR)

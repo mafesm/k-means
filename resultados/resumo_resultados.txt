@@ -22,3 +22,87 @@ Grande
   Iteracoes: 19
   N=1000000, K=16
 
+Pequeno
+(10k, 4):
+  Tempo: 16.0 ms
+  SSE: 5602287.15
+  Iteracoes: 9
+  N=10000, K=4
+
+Medio
+(100k, 8):
+  Tempo: 20.0 ms
+  SSE: 785489.51
+  Iteracoes: 5
+  N=100000, K=8
+
+Grande
+(1M, 16):
+  Tempo: 1141.0 ms
+  SSE: 253407770.16
+  Iteracoes: 19
+  N=1000000, K=16
+
+Pequeno
+(10k, 4):
+  Tempo: 2.0 ms
+  SSE: 5602287.15
+  Iteracoes: 9
+  N=10000, K=4
+
+Medio
+(100k, 8):
+  Tempo: 38.0 ms
+  SSE: 785489.51
+  Iteracoes: 5
+  N=100000, K=8
+
+Grande
+(1M, 16):
+  Tempo: 909.0 ms
+  SSE: 253407770.16
+  Iteracoes: 19
+  N=1000000, K=16
+
+Pequeno
+(10k, 4):
+  Tempo: 11.0 ms
+  SSE: 5602287.15
+  Iteracoes: 9
+  N=10000, K=4
+
+Medio
+(100k, 8):
+  Tempo: 17.0 ms
+  SSE: 785489.51
+  Iteracoes: 5
+  N=100000, K=8
+
+Grande
+(1M, 16):
+  Tempo: 1429.0 ms
+  SSE: 253407770.16
+  Iteracoes: 19
+  N=1000000, K=16
+
+Pequeno
+(10k, 4):
+  Tempo: 0.0 ms
+  SSE: 5602287.15
+  Iteracoes: 9
+  N=10000, K=4
+
+Medio
+(100k, 8):
+  Tempo: 31.0 ms
+  SSE: 785489.51
+  Iteracoes: 5
+  N=100000, K=8
+
+Grande
+(1M, 16):
+  Tempo: 1481.0 ms
+  SSE: 253407770.16
+  Iteracoes: 19
+  N=1000000, K=16
+
