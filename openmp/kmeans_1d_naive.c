@@ -3,6 +3,9 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <omp.h>
+#include <ctype.h>
+
 
 /* ---------- util CSV 1D: cada linha tem 1 numero ---------- */
 static int count_rows(const char *path)
@@ -124,6 +127,7 @@ static void write_centroids_csv(const char *path, const double *C, int K)
 static double assignment_step_1d(const double *X, const double *C, int *assign, int N, int K)
 {
     double sse = 0.0;
+    #pragma omp parallel for reduction(+:sse) schedule(static)
     for (int i = 0; i < N; i++)
     {
         int best = -1;
@@ -148,56 +152,55 @@ static double assignment_step_1d(const double *X, const double *C, int *assign, 
    se cluster vazio, copia X[0] (estratégia naive) */
 static void update_step_1d(const double *X, double *C, const int *assign, int N, int K)
 {
-    double *sum = (double *)calloc((size_t)K, sizeof(double));
-    int *cnt = (int *)calloc((size_t)K, sizeof(int));
-    if (!sum || !cnt)
+    int nthreads = omp_get_max_threads();
+    printf("threads %d\n", nthreads);
+
+    double **sum_thread = (double**) malloc(nthreads * sizeof(double*));
+    int    **cnt_thread = (int**) malloc(nthreads * sizeof(int*));
+
+    if (!sum_thread || !cnt_thread)
     {
         fprintf(stderr, "Sem memoria no update\n");
         exit(1);
     }
 
+    for (int t=0; t < nthreads; t++) {
+        sum_thread[t] = (double*) calloc(K,sizeof(double));
+        cnt_thread[t] = (int*) calloc(K,sizeof(int));
+    }
+
+
     #pragma omp parallel
     {
-        // We're creating local copies of the arrays that'll be used to perform the partial
-        // calculations inside a thread
-        double *local_sum = (double *)calloc((size_t)K, sizeof(double));
-        int *local_cnt = (int *)calloc((size_t)K, sizeof(int));
-
-        // Executing the partial sums, notice the lack of thread IDs since we instantiating an array
-        // locally for every thread
-        #pragma omp for
-        for (int i = 0; i < N; i++)
-        {
+        int th_id = omp_get_thread_num();
+        #pragma omp for schedule(static)
+        for (int i=0 ;i < N; i++){
             int a = assign[i];
-            local_cnt[a] += 1;
-            local_sum[a] += X[i];
+            cnt_thread[th_id][a]++;
+            sum_thread[th_id][a] += X[i];
         }
-
-        // Combine the partial sums so far (critical since we're accessing shared variables)
-        #pragma omp critical
-        {
-            for (int c = 0; c < K; c++)
-            {
-                cnt[c] += local_cnt[c];
-                sum[c] += local_sum[c];
-            }
-        }
-
-        free(local_sum);
-        free(local_cnt);
     }
 
-    for (int c = 0; c < K; c++)
-    {
-        if (cnt[c] > 0)
-            C[c] = sum[c] / (double)cnt[c];
-        else
-            C[c] = X[0];
+    for (int c = 0; c < K; c++) {
+        double sum = 0.0;
+        int cnt = 0;
+        for (int t = 0; t < nthreads; t++) {
+            sum += sum_thread[t][c];
+            cnt += cnt_thread[t][c];
+        }
+        if (cnt > 0) C[c] = sum / cnt;
+        else C[c] = X[0];
     }
 
-    free(sum);
-    free(cnt);
+    for (int t=0; t < nthreads; t++) {
+        free(sum_thread[t]);
+        free(cnt_thread[t]);
+    }
+
+    free(sum_thread);
+    free(cnt_thread);
 }
+
 
 static void kmeans_1d(const double *X, double *C, int *assign,
                       int N, int K, int max_iter, double eps,
