@@ -25,7 +25,7 @@ def gerar_grafs():
                       color=['#4CAF50', '#2196F3', '#FF9800'])
         
         plt.ylabel('Tempo de Execucao (ms)', fontsize=12)
-        plt.title('Tempos de Execucao - K-means 1D OpenMP\n(Etapa 0 - Baseline)', 
+        plt.title('Tempos de Execucao - K-means 1D OpenMP\n(Etapa 1 - CPU)', 
                  fontsize=14, fontweight='bold')
         plt.grid(axis='y', alpha=0.3)
         
@@ -80,7 +80,7 @@ def gerar_grafs():
         
         # Salvar tabela resumo
         with open(f'{RESULTS_DIR}/resumo_resultados.txt', 'w') as f:
-            f.write("RESUMO DOS RESULTADOS - ETAPA 0\n")
+            f.write("RESUMO DOS RESULTADOS - Etapa 1\n")
             f.write("===============================\n\n")
             for _, row in df.iterrows():
                 f.write(f"{row['Configuracao']}:\n")

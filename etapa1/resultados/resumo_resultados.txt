@@ -1,4 +1,4 @@
-RESUMO DOS RESULTADOS - ETAPA 0
+RESUMO DOS RESULTADOS - Etapa 1
 ===============================
 
 Pequeno
@@ -39,6 +39,27 @@ Medio
 Grande
 (1M, 16):
   Tempo: 1904.0 ms
+  SSE: 253407770.16
+  Iteracoes: 19
+  N=1000000, K=16
+
+Pequeno
+(10k, 4):
+  Tempo: 0.0 ms
+  SSE: 5602287.15
+  Iteracoes: 9
+  N=10000, K=4
+
+Medio
+(100k, 8):
+  Tempo: 31.0 ms
+  SSE: 785489.51
+  Iteracoes: 5
+  N=100000, K=8
+
+Grande
+(1M, 16):
+  Tempo: 2057.0 ms
   SSE: 253407770.16
   Iteracoes: 19
   N=1000000, K=16
