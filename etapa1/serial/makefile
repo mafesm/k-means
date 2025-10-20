@@ -1,10 +1,9 @@
 # Makefile para K-means 1D Sequencial - Etapa 0
 
 CC = gcc
-CFLAGS = -O2 -std=c99 -lm -fopenmp
+CFLAGS = -O2 -std=c99 -lm
 PROG = kmeans_1d_naive.exe
-# FONTE = openmp/kmeans_1d_naive.c
-FONTE = serial/kmeans_1d_naive.c
+FONTE = kmeans_1d_naive.c
 
 RESULTS_DIR = resultados
 
@@ -17,15 +16,15 @@ $(RESULTS_DIR):
 
 dados_pequenos: $(RESULTS_DIR)
 	@echo " >> gerando dados pequenos (N=10k, K=4)..."
-	python scripts/gerar_dados.py 10000 4 $(RESULTS_DIR)/dados_10k.csv $(RESULTS_DIR)/centroides_4.csv
+	python ../scripts/gerar_dados.py 10000 4 $(RESULTS_DIR)/dados_10k.csv $(RESULTS_DIR)/centroides_4.csv
 
 dados_medios: $(RESULTS_DIR)
 	@echo " >> gerando dados medios (N=100k, K=8)..."
-	python scripts/gerar_dados.py 100000 8 $(RESULTS_DIR)/dados_100k.csv $(RESULTS_DIR)/centroides_8.csv
+	python ../scripts/gerar_dados.py 100000 8 $(RESULTS_DIR)/dados_100k.csv $(RESULTS_DIR)/centroides_8.csv
 
 dados_grandes: $(RESULTS_DIR)
 	@echo " >> gerando dados grandes (N=1M, K=16)..."
-	python scripts/gerar_dados.py 1000000 16 $(RESULTS_DIR)/dados_1M.csv $(RESULTS_DIR)/centroides_16.csv
+	python ../scripts/gerar_dados.py 1000000 16 $(RESULTS_DIR)/dados_1M.csv $(RESULTS_DIR)/centroides_16.csv
 
 dados_todos: dados_pequenos dados_medios dados_grandes
 	@echo " >> todos os dados de teste gerados"
@@ -52,7 +51,7 @@ teste_todos: teste_pequeno teste_medio teste_grande
 
 graficos:
 	@echo " >> gerando graficos a partir dos resultados..."
-	python scripts/gerar_graficos.py
+	python ../scripts/gerar_graficos.py
 
 relatorio: $(PROG) dados_todos teste_todos graficos
 	@echo " >> relatorio completo gerado"
