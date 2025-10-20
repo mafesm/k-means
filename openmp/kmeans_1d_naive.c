@@ -153,7 +153,6 @@ static double assignment_step_1d(const double *X, const double *C, int *assign, 
 static void update_step_1d(const double *X, double *C, const int *assign, int N, int K)
 {
     int nthreads = omp_get_max_threads();
-    printf("threads %d\n", nthreads);
 
     double **sum_thread = (double**) malloc(nthreads * sizeof(double*));
     int    **cnt_thread = (int**) malloc(nthreads * sizeof(int*));
