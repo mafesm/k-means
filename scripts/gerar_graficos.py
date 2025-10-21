@@ -25,7 +25,7 @@ def gerar_grafs():
                       color=['#4CAF50', '#2196F3', '#FF9800'])
         
         plt.ylabel('Tempo de Execucao (ms)', fontsize=12)
-        plt.title('Tempos de Execucao - K-means 1D Sequencial\n(Etapa 0 - Baseline)', 
+        plt.title('Tempos de Execucao - K-means 1D OpenMP\n(Etapa 1 - CPU)', 
                  fontsize=14, fontweight='bold')
         plt.grid(axis='y', alpha=0.3)
         
@@ -43,7 +43,7 @@ def gerar_grafs():
                       color=['#81C784', '#64B5F6', '#FFB74D'])
         
         plt.ylabel('SSE Final', fontsize=12)
-        plt.title('SSE Final por Configuracao - K-means 1D Sequencial', 
+        plt.title('SSE Final por Configuracao - K-means 1D OpenMP', 
                  fontsize=14, fontweight='bold')
         plt.grid(axis='y', alpha=0.3)
         
@@ -61,7 +61,7 @@ def gerar_grafs():
                       color=['#A5D6A7', '#90CAF9', '#FFCC80'])
         
         plt.ylabel('Numero de Iteracoes', fontsize=12)
-        plt.title('Iteracoes ate Convergencia - K-means 1D Sequencial', 
+        plt.title('Iteracoes ate Convergencia - K-means 1D OpenMP', 
                  fontsize=14, fontweight='bold')
         plt.grid(axis='y', alpha=0.3)
         
