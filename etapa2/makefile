@@ -74,23 +74,23 @@ teste_update_modes: $(PROG) dados_medios
 benchmark: $(PROG) dados_todos
 	@echo  ">> === BENCHMARK COMPLETO CUDA ==="
 	@echo  ">> [1/9] Pequeno - BS=128 - CPU update"
-	$(PROG) $(RESULTS_DIR)/dados_10k.csv $(RESULTS_DIR)/centroides_4.csv 100 1e-6 $(RESULTS_DIR)/temp1.csv $(RESULTS_DIR)/temp1c.csv $(RESULTS_DIR)/resultados_desempenho.csv 128 0
+	$(PROG) $(RESULTS_DIR)/dados_10k.csv $(RESULTS_DIR)/centroides_4.csv 100 1e-6 $(RESULTS_DIR)/temp1.csv $(RESULTS_DIR)/temp1c.csv $(RESULTS_DIR)/resultados_desempenho.csv 128 1
 	@echo  ">> [2/9] Pequeno - BS=256 - CPU update"
-	$(PROG) $(RESULTS_DIR)/dados_10k.csv $(RESULTS_DIR)/centroides_4.csv 100 1e-6 $(RESULTS_DIR)/temp2.csv $(RESULTS_DIR)/temp2c.csv $(RESULTS_DIR)/resultados_desempenho.csv 256 0
+	$(PROG) $(RESULTS_DIR)/dados_10k.csv $(RESULTS_DIR)/centroides_4.csv 100 1e-6 $(RESULTS_DIR)/temp2.csv $(RESULTS_DIR)/temp2c.csv $(RESULTS_DIR)/resultados_desempenho.csv 256 1
 	@echo  ">> [3/9] Pequeno - BS=512 - CPU update"
-	$(PROG) $(RESULTS_DIR)/dados_10k.csv $(RESULTS_DIR)/centroides_4.csv 100 1e-6 $(RESULTS_DIR)/temp3.csv $(RESULTS_DIR)/temp3c.csv $(RESULTS_DIR)/resultados_desempenho.csv 512 0
+	$(PROG) $(RESULTS_DIR)/dados_10k.csv $(RESULTS_DIR)/centroides_4.csv 100 1e-6 $(RESULTS_DIR)/temp3.csv $(RESULTS_DIR)/temp3c.csv $(RESULTS_DIR)/resultados_desempenho.csv 512 1
 	@echo  ">> [4/9] Medio - BS=128 - CPU update"
-	$(PROG) $(RESULTS_DIR)/dados_100k.csv $(RESULTS_DIR)/centroides_8.csv 100 1e-6 $(RESULTS_DIR)/temp4.csv $(RESULTS_DIR)/temp4c.csv $(RESULTS_DIR)/resultados_desempenho.csv 128 0
+	$(PROG) $(RESULTS_DIR)/dados_100k.csv $(RESULTS_DIR)/centroides_8.csv 100 1e-6 $(RESULTS_DIR)/temp4.csv $(RESULTS_DIR)/temp4c.csv $(RESULTS_DIR)/resultados_desempenho.csv 128 1
 	@echo  ">> [5/9] Medio - BS=256 - CPU update"
-	$(PROG) $(RESULTS_DIR)/dados_100k.csv $(RESULTS_DIR)/centroides_8.csv 100 1e-6 $(RESULTS_DIR)/temp5.csv $(RESULTS_DIR)/temp5c.csv $(RESULTS_DIR)/resultados_desempenho.csv 256 0
+	$(PROG) $(RESULTS_DIR)/dados_100k.csv $(RESULTS_DIR)/centroides_8.csv 100 1e-6 $(RESULTS_DIR)/temp5.csv $(RESULTS_DIR)/temp5c.csv $(RESULTS_DIR)/resultados_desempenho.csv 256 1
 	@echo  ">> [6/9] Medio - BS=512 - CPU update"
-	$(PROG) $(RESULTS_DIR)/dados_100k.csv $(RESULTS_DIR)/centroides_8.csv 100 1e-6 $(RESULTS_DIR)/temp6.csv $(RESULTS_DIR)/temp6c.csv $(RESULTS_DIR)/resultados_desempenho.csv 512 0
+	$(PROG) $(RESULTS_DIR)/dados_100k.csv $(RESULTS_DIR)/centroides_8.csv 100 1e-6 $(RESULTS_DIR)/temp6.csv $(RESULTS_DIR)/temp6c.csv $(RESULTS_DIR)/resultados_desempenho.csv 512 1
 	@echo  ">> [7/9] Grande - BS=128 - CPU update"
-	$(PROG) $(RESULTS_DIR)/dados_1M.csv $(RESULTS_DIR)/centroides_16.csv 100 1e-6 $(RESULTS_DIR)/temp7.csv $(RESULTS_DIR)/temp7c.csv $(RESULTS_DIR)/resultados_desempenho.csv 128 0
+	$(PROG) $(RESULTS_DIR)/dados_1M.csv $(RESULTS_DIR)/centroides_16.csv 100 1e-6 $(RESULTS_DIR)/temp7.csv $(RESULTS_DIR)/temp7c.csv $(RESULTS_DIR)/resultados_desempenho.csv 128 1
 	@echo  ">> [8/9] Grande - BS=256 - CPU update"
-	$(PROG) $(RESULTS_DIR)/dados_1M.csv $(RESULTS_DIR)/centroides_16.csv 100 1e-6 $(RESULTS_DIR)/temp8.csv $(RESULTS_DIR)/temp8c.csv $(RESULTS_DIR)/resultados_desempenho.csv 256 0
+	$(PROG) $(RESULTS_DIR)/dados_1M.csv $(RESULTS_DIR)/centroides_16.csv 100 1e-6 $(RESULTS_DIR)/temp8.csv $(RESULTS_DIR)/temp8c.csv $(RESULTS_DIR)/resultados_desempenho.csv 256 1
 	@echo  ">> [9/9] Grande - BS=512 - CPU update"
-	$(PROG) $(RESULTS_DIR)/dados_1M.csv $(RESULTS_DIR)/centroides_16.csv 100 1e-6 $(RESULTS_DIR)/temp9.csv $(RESULTS_DIR)/temp9c.csv $(RESULTS_DIR)/resultados_desempenho.csv 512 0
+	$(PROG) $(RESULTS_DIR)/dados_1M.csv $(RESULTS_DIR)/centroides_16.csv 100 1e-6 $(RESULTS_DIR)/temp9.csv $(RESULTS_DIR)/temp9c.csv $(RESULTS_DIR)/resultados_desempenho.csv 512 1
 	@del /Q $(RESULTS_DIR)\temp*.csv 2>nul
 	@echo  ">> Benchmark completo!"
 
