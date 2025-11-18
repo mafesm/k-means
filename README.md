@@ -15,6 +15,11 @@ cd serial
 ```bash
 cd openmp
 ```
+
+- CUDA:
+```bash
+cd cuda
+```
 Posteriormente, a compilação segue igualmente utlizando as diretivas abaixo: 
 
 ```bash
