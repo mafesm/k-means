@@ -1,6 +1,6 @@
-# README - Projeto PCD: K-means 1D -
+# README - Projeto PCD: K-means 1D 
 
-No momento, foram implementadas as duas primeiras etapas do projeto: implementação serial e pararelização com OpenMP.
+No momento, foram implementadas as três primeiras etapas do projeto: implementação serial, pararelização com OpenMP e CUDA.
 
 ## Compilação
 
