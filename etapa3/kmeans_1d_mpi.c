@@ -2,23 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <cuda_runtime.h>
-#include <time.h>
+#include <mpi.h>
 
-/* ========== MACROS DE ERRO CUDA ========== */
-#define CUDA_CHECK(call)                                          \
-    do                                                            \
-    {                                                             \
-        cudaError_t err = call;                                   \
-        if (err != cudaSuccess)                                   \
-        {                                                         \
-            fprintf(stderr, "CUDA error em %s:%d: %s\n",          \
-                    __FILE__, __LINE__, cudaGetErrorString(err)); \
-            exit(EXIT_FAILURE);                                   \
-        }                                                         \
-    } while (0)
-
-/* ========== UTILITÁRIOS CSV (IGUAL AO ORIGINAL) ========== */
+/* ========== UTILITÁRIOS CSV ========== */
 static int count_rows(const char *path)
 {
     FILE *f = fopen(path, "r");
@@ -132,285 +118,243 @@ static void write_centroids_csv(const char *path, const double *C, int K)
     fclose(f);
 }
 
-/* ========== KERNELS CUDA ========== */
-
-/* KERNEL 1: Assignment Step
- * Cada thread processa 1 ponto X[i]
- * Calcula distância para todos K centróides
- * Salva o cluster mais próximo em assign[i]
- * Salva o erro quadrático em sse_per_point[i]
- */
-__global__ void kernel_assignment(
-    const double *X,       // [N] pontos de entrada
-    const double *C,       // [K] centróides
-    int *assign,           // [N] saída: cluster de cada ponto
-    double *sse_per_point, // [N] erro quadrático de cada ponto
-    int N,                 // número de pontos
-    int K)                 // número de clusters
+/* ========== DISTRIBUIÇÃO DE DADOS ========== */
+/* Calcula quantos elementos cada processo recebe */
+static void calculate_distribution(int N, int P, int rank, int *local_n, int *offset)
 {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int base = N / P;      // Elementos por processo
+    int remainder = N % P; // Elementos restantes
 
-    if (i >= N)
-        return; // thread fora do range
+    // Processos com rank < remainder recebem 1 elemento extra
+    if (rank < remainder)
+    {
+        *local_n = base + 1;
+        *offset = rank * (base + 1);
+    }
+    else
+    {
+        *local_n = base;
+        *offset = rank * base + remainder;
+    }
+}
 
-    double xi = X[i];
-    int best_cluster = 0;
-    double best_dist = 1e300;
+/* ========== ASSIGNMENT LOCAL ========== */
+/* Cada processo calcula assignment para seu bloco de pontos */
+static double assignment_step_local(
+    const double *X_local, // Pontos locais deste processo
+    const double *C,       // Centróides (globais)
+    int *assign_local,     // Assignments locais
+    int local_n,           // Número de pontos locais
+    int K)                 // Número de clusters
+{
+    double sse_local = 0.0;
 
-    // Varre todos os K centróides
+    for (int i = 0; i < local_n; i++)
+    {
+        int best = 0;
+        double bestd = 1e300;
+
+        for (int c = 0; c < K; c++)
+        {
+            double diff = X_local[i] - C[c];
+            double d = diff * diff;
+            if (d < bestd)
+            {
+                bestd = d;
+                best = c;
+            }
+        }
+
+        assign_local[i] = best;
+        sse_local += bestd;
+    }
+
+    return sse_local;
+}
+
+/* ========== UPDATE LOCAL ========== */
+/* Cada processo acumula somas e contagens para seu bloco */
+static void update_step_local(
+    const double *X_local,
+    const int *assign_local,
+    double *sum_local,
+    int *cnt_local,
+    int local_n,
+    int K)
+{
+    // Zerar arrays locais
     for (int c = 0; c < K; c++)
     {
-        double diff = xi - C[c];
-        double dist = diff * diff; // distância euclidiana ao quadrado
+        sum_local[c] = 0.0;
+        cnt_local[c] = 0;
+    }
 
-        if (dist < best_dist)
+    // Acumular localmente
+    for (int i = 0; i < local_n; i++)
+    {
+        int a = assign_local[i];
+        cnt_local[a] += 1;
+        sum_local[a] += X_local[i];
+    }
+}
+
+/* ========== K-MEANS MPI ========== */
+void kmeans_mpi(
+    const double *X_all, // Todos os pontos (apenas rank 0 tem inicialmente)
+    double *C,           // Centróides (todos os processos)
+    int *assign_all,     // Assignments completos (apenas rank 0 preenche)
+    int N, int K,
+    int max_iter, double eps,
+    int rank, int size, // Rank e tamanho do communicator
+    int *iters_out,
+    double *sse_out,
+    double *time_total,
+    double *time_comm)
+{
+    double t_start, t_end, t_comm_start, t_comm_total = 0.0;
+
+    // Calcular distribuição de dados
+    int local_n, offset;
+    calculate_distribution(N, size, rank, &local_n, &offset);
+
+    // Alocar arrays locais
+    double *X_local = (double *)malloc(local_n * sizeof(double));
+    int *assign_local = (int *)malloc(local_n * sizeof(int));
+    double *sum_local = (double *)malloc(K * sizeof(double));
+    int *cnt_local = (int *)malloc(K * sizeof(int));
+    double *sum_global = (double *)malloc(K * sizeof(double));
+    int *cnt_global = (int *)malloc(K * sizeof(int));
+
+    if (!X_local || !assign_local || !sum_local || !cnt_local || !sum_global || !cnt_global)
+    {
+        fprintf(stderr, "Rank %d: Erro ao alocar memoria\n", rank);
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+
+    // Arrays para Scatterv/Gatherv
+    int *sendcounts = NULL;
+    int *displs = NULL;
+
+    if (rank == 0)
+    {
+        sendcounts = (int *)malloc(size * sizeof(int));
+        displs = (int *)malloc(size * sizeof(int));
+
+        for (int p = 0; p < size; p++)
         {
-            best_dist = dist;
-            best_cluster = c;
+            int pn, poff;
+            calculate_distribution(N, size, p, &pn, &poff);
+            sendcounts[p] = pn;
+            displs[p] = poff;
         }
     }
 
-    assign[i] = best_cluster;
-    sse_per_point[i] = best_dist;
-}
+    // PASSO 0: Distribuir dados iniciais (apenas uma vez)
+    t_comm_start = MPI_Wtime();
+    MPI_Scatterv(X_all, sendcounts, displs, MPI_DOUBLE,
+                 X_local, local_n, MPI_DOUBLE,
+                 0, MPI_COMM_WORLD);
+    t_comm_total += MPI_Wtime() - t_comm_start;
 
-/* KERNEL 2: Update com Atomics
- * Cada thread adiciona seu ponto à soma do cluster
- * Usa atomicAdd para evitar race conditions
- */
-__global__ void kernel_update_atomic(
-    const double *X,   // [N] pontos
-    const int *assign, // [N] cluster de cada ponto
-    double *sum,       // [K] soma dos pontos de cada cluster
-    int *cnt,          // [K] contagem de pontos por cluster
-    int N)
-{
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    // Início do algoritmo
+    t_start = MPI_Wtime();
 
-    if (i >= N)
-        return;
-
-    int cluster = assign[i];
-    atomicAdd(&sum[cluster], X[i]);
-    atomicAdd(&cnt[cluster], 1);
-}
-
-/* ========== FUNÇÕES HOST ========== */
-
-/* Calcula SSE total somando os erros individuais */
-double compute_sse_host(const double *sse_per_point, int N)
-{
-    double total = 0.0;
-    for (int i = 0; i < N; i++)
-    {
-        total += sse_per_point[i];
-    }
-    return total;
-}
-
-/* Update na CPU (Opção A - mais simples)
- * Recebe assignments da GPU e calcula médias na CPU
- */
-void update_step_host(const double *X, double *C, const int *assign, int N, int K)
-{
-    double *sum = (double *)calloc((size_t)K, sizeof(double));
-    int *cnt = (int *)calloc((size_t)K, sizeof(int));
-
-    for (int i = 0; i < N; i++)
-    {
-        int a = assign[i];
-        cnt[a] += 1;
-        sum[a] += X[i];
-    }
-
-    for (int c = 0; c < K; c++)
-    {
-        if (cnt[c] > 0)
-            C[c] = sum[c] / (double)cnt[c];
-        else
-            C[c] = X[0]; // cluster vazio recebe primeiro ponto
-    }
-
-    free(sum);
-    free(cnt);
-}
-
-/* Update na GPU (Opção B - com atomics) */
-void update_step_device(
-    const double *d_X, double *d_C, const int *d_assign,
-    int N, int K, int block_size)
-{
-    // Alocar sum e cnt na GPU
-    double *d_sum;
-    int *d_cnt;
-    CUDA_CHECK(cudaMalloc(&d_sum, K * sizeof(double)));
-    CUDA_CHECK(cudaMalloc(&d_cnt, K * sizeof(int)));
-    CUDA_CHECK(cudaMemset(d_sum, 0, K * sizeof(double)));
-    CUDA_CHECK(cudaMemset(d_cnt, 0, K * sizeof(int)));
-
-    // Executar kernel de update
-    int grid_size = (N + block_size - 1) / block_size;
-    kernel_update_atomic<<<grid_size, block_size>>>(d_X, d_assign, d_sum, d_cnt, N);
-    CUDA_CHECK(cudaGetLastError());
-
-    // Copiar para CPU e calcular médias
-    double *sum = (double *)malloc(K * sizeof(double));
-    int *cnt = (int *)malloc(K * sizeof(int));
-    CUDA_CHECK(cudaMemcpy(sum, d_sum, K * sizeof(double), cudaMemcpyDeviceToHost));
-    CUDA_CHECK(cudaMemcpy(cnt, d_cnt, K * sizeof(int), cudaMemcpyDeviceToHost));
-
-    double *C = (double *)malloc(K * sizeof(double));
-    for (int c = 0; c < K; c++)
-    {
-        if (cnt[c] > 0)
-            C[c] = sum[c] / (double)cnt[c];
-        else
-            C[c] = 0.0; // ou outra estratégia
-    }
-
-    // Copiar centróides de volta para GPU
-    CUDA_CHECK(cudaMemcpy(d_C, C, K * sizeof(double), cudaMemcpyHostToDevice));
-
-    free(sum);
-    free(cnt);
-    free(C);
-    CUDA_CHECK(cudaFree(d_sum));
-    CUDA_CHECK(cudaFree(d_cnt));
-}
-
-/* ========== K-MEANS CUDA ========== */
-void kmeans_cuda(
-    const double *X, // pontos (host)
-    double *C,       // centróides (host)
-    int *assign,     // assignments (host)
-    int N, int K,
-    int max_iter, double eps,
-    int block_size,     // threads por bloco
-    int use_gpu_update, // 0=CPU update, 1=GPU update
-    int *iters_out,
-    double *sse_out,
-    double *time_h2d,
-    double *time_d2h,
-    double *time_kernel)
-{
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    float ms = 0;
-
-    // ========== ALOCAÇÃO GPU ==========
-    double *d_X, *d_C, *d_sse_per_point;
-    int *d_assign;
-
-    CUDA_CHECK(cudaMalloc(&d_X, N * sizeof(double)));
-    CUDA_CHECK(cudaMalloc(&d_C, K * sizeof(double)));
-    CUDA_CHECK(cudaMalloc(&d_assign, N * sizeof(int)));
-    CUDA_CHECK(cudaMalloc(&d_sse_per_point, N * sizeof(double)));
-
-    // ========== CÓPIA HOST → DEVICE ==========
-    cudaEventRecord(start);
-    CUDA_CHECK(cudaMemcpy(d_X, X, N * sizeof(double), cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(d_C, C, K * sizeof(double), cudaMemcpyHostToDevice));
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&ms, start, stop);
-    *time_h2d = ms;
-
-    // ========== LOOP K-MEANS ==========
-    int grid_size = (N + block_size - 1) / block_size;
     double prev_sse = 1e300;
-    double sse = 0.0;
+    double sse_global = 0.0;
     int it;
-
-    double total_kernel_time = 0.0;
 
     for (it = 0; it < max_iter; it++)
     {
-        // --- Assignment Step ---
-        cudaEventRecord(start);
-        kernel_assignment<<<grid_size, block_size>>>(
-            d_X, d_C, d_assign, d_sse_per_point, N, K);
-        CUDA_CHECK(cudaGetLastError());
-        CUDA_CHECK(cudaDeviceSynchronize());
-        cudaEventRecord(stop);
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&ms, start, stop);
-        total_kernel_time += ms;
+        // PASSO 1: Broadcast dos centróides
+        t_comm_start = MPI_Wtime();
+        MPI_Bcast(C, K, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        t_comm_total += MPI_Wtime() - t_comm_start;
 
-        // --- Calcular SSE ---
-        double *sse_host = (double *)malloc(N * sizeof(double));
-        CUDA_CHECK(cudaMemcpy(sse_host, d_sse_per_point, N * sizeof(double),
-                              cudaMemcpyDeviceToHost));
-        sse = compute_sse_host(sse_host, N);
-        free(sse_host);
+        // PASSO 2: Assignment local
+        double sse_local = assignment_step_local(X_local, C, assign_local, local_n, K);
 
-        // --- Critério de parada ---
-        double rel = fabs(sse - prev_sse) / (prev_sse > 0.0 ? prev_sse : 1.0);
+        // PASSO 3: Redução do SSE
+        t_comm_start = MPI_Wtime();
+        MPI_Reduce(&sse_local, &sse_global, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+        // Broadcast do SSE global para todos (necessário para critério de parada)
+        MPI_Bcast(&sse_global, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        t_comm_total += MPI_Wtime() - t_comm_start;
+
+        // PASSO 4: Critério de parada (todos os processos decidem juntos)
+        double rel = fabs(sse_global - prev_sse) / (prev_sse > 0.0 ? prev_sse : 1.0);
         if (rel < eps)
         {
             it++;
             break;
         }
 
-        // --- Update Step ---
-        if (use_gpu_update)
+        // PASSO 5: Update local (calcular somas e contagens locais)
+        update_step_local(X_local, assign_local, sum_local, cnt_local, local_n, K);
+
+        // PASSO 6: Allreduce das somas e contagens
+        t_comm_start = MPI_Wtime();
+        MPI_Allreduce(sum_local, sum_global, K, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(cnt_local, cnt_global, K, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        t_comm_total += MPI_Wtime() - t_comm_start;
+
+        // PASSO 7: Todos os processos calculam novos centróides
+        for (int c = 0; c < K; c++)
         {
-            // Opção B: update na GPU
-            cudaEventRecord(start);
-            update_step_device(d_X, d_C, d_assign, N, K, block_size);
-            cudaEventRecord(stop);
-            cudaEventSynchronize(stop);
-            cudaEventElapsedTime(&ms, start, stop);
-            total_kernel_time += ms;
-        }
-        else
-        {
-            // Opção A: update na CPU
-            int *assign_host = (int *)malloc(N * sizeof(int));
-            CUDA_CHECK(cudaMemcpy(assign_host, d_assign, N * sizeof(int),
-                                  cudaMemcpyDeviceToHost));
-            update_step_host(X, C, assign_host, N, K);
-            CUDA_CHECK(cudaMemcpy(d_C, C, K * sizeof(double),
-                                  cudaMemcpyHostToDevice));
-            free(assign_host);
+            if (cnt_global[c] > 0)
+                C[c] = sum_global[c] / (double)cnt_global[c];
+            else
+                C[c] = X_local[0]; // Cluster vazio recebe primeiro ponto local
         }
 
-        prev_sse = sse;
+        prev_sse = sse_global;
     }
 
-    *time_kernel = total_kernel_time;
+    t_end = MPI_Wtime();
 
-    // ========== CÓPIA DEVICE → HOST ==========
-    cudaEventRecord(start);
-    CUDA_CHECK(cudaMemcpy(assign, d_assign, N * sizeof(int), cudaMemcpyDeviceToHost));
-    CUDA_CHECK(cudaMemcpy(C, d_C, K * sizeof(double), cudaMemcpyDeviceToHost));
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&ms, start, stop);
-    *time_d2h = ms;
+    // Coletar assignments de volta no rank 0
+    t_comm_start = MPI_Wtime();
+    MPI_Gatherv(assign_local, local_n, MPI_INT,
+                assign_all, sendcounts, displs, MPI_INT,
+                0, MPI_COMM_WORLD);
+    t_comm_total += MPI_Wtime() - t_comm_start;
 
     *iters_out = it;
-    *sse_out = sse;
+    *sse_out = sse_global;
+    *time_total = (t_end - t_start) * 1000.0; // converter para ms
+    *time_comm = t_comm_total * 1000.0;       // converter para ms
 
-    // ========== LIMPEZA ==========
-    CUDA_CHECK(cudaFree(d_X));
-    CUDA_CHECK(cudaFree(d_C));
-    CUDA_CHECK(cudaFree(d_assign));
-    CUDA_CHECK(cudaFree(d_sse_per_point));
+    // Liberar memória
+    free(X_local);
+    free(assign_local);
+    free(sum_local);
+    free(cnt_local);
+    free(sum_global);
+    free(cnt_global);
 
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
+    if (rank == 0)
+    {
+        free(sendcounts);
+        free(displs);
+    }
 }
 
-/* ========== MAIN (COMPATÍVEL COM ETAPA 0) ========== */
+/* ========== MAIN ========== */
 int main(int argc, char **argv)
 {
-    if (argc < 7)
+    MPI_Init(&argc, &argv);
+
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    if (argc < 5)
     {
-        printf("Uso: %s dados.csv centroides.csv max_iter eps assign.csv centroides.csv [results.csv] [block_size] [gpu_update]\n", argv[0]);
-        printf("  Compativel com formato da Etapa 0\n");
-        printf("  block_size: threads por bloco (default=256)\n");
-        printf("  gpu_update: 0=CPU update, 1=GPU update (default=0)\n");
+        if (rank == 0)
+        {
+            printf("Uso: mpirun -np P %s dados.csv centroides.csv max_iter eps [assign.csv] [centroides.csv] [results.csv]\n", argv[0]);
+        }
+        MPI_Finalize();
         return 1;
     }
 
@@ -418,85 +362,101 @@ int main(int argc, char **argv)
     const char *pathC = argv[2];
     int max_iter = atoi(argv[3]);
     double eps = atof(argv[4]);
-    const char *outAssign = argv[5];
-    const char *outCentroid = argv[6];
+    const char *outAssign = (argc > 5) ? argv[5] : "assign_mpi.csv";
+    const char *outCentroid = (argc > 6) ? argv[6] : "centroides_mpi.csv";
     const char *outResults = (argc > 7) ? argv[7] : NULL;
-    int block_size = (argc > 8) ? atoi(argv[8]) : 256;
-    int use_gpu_update = (argc > 9) ? atoi(argv[9]) : 0;
 
     if (max_iter <= 0 || eps <= 0.0)
     {
-        fprintf(stderr, "Parametros invalidos: max_iter>0 e eps>0\n");
+        if (rank == 0)
+            fprintf(stderr, "Parametros invalidos: max_iter>0 e eps>0\n");
+        MPI_Finalize();
         return 1;
     }
 
-    // Ler dados
+    // Apenas rank 0 lê os dados
     int N = 0, K = 0;
-    double *X = read_csv_1col(pathX, &N);
-    double *C = read_csv_1col(pathC, &K);
-    int *assign = (int *)malloc(N * sizeof(int));
+    double *X_all = NULL;
+    double *C = NULL;
+    int *assign_all = NULL;
 
-    if (!assign)
+    if (rank == 0)
     {
-        fprintf(stderr, "Sem memoria para assign\n");
-        free(X);
-        free(C);
-        return 1;
+        X_all = read_csv_1col(pathX, &N);
+        C = read_csv_1col(pathC, &K);
+        assign_all = (int *)malloc(N * sizeof(int));
+
+        if (!assign_all)
+        {
+            fprintf(stderr, "Sem memoria para assign\n");
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
     }
 
-    // Medir tempo total (incluindo overhead)
-    clock_t t0 = clock();
+    // Broadcast de N e K para todos os processos
+    MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&K, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    // Executar k-means
+    // Processos != 0 alocam memória para centróides
+    if (rank != 0)
+    {
+        C = (double *)malloc(K * sizeof(double));
+        if (!C)
+        {
+            fprintf(stderr, "Rank %d: Sem memoria para centroides\n", rank);
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+    }
+
+    // Executar k-means MPI
     int iters;
-    double sse, time_h2d, time_d2h, time_kernel;
+    double sse, time_total, time_comm;
 
-    kmeans_cuda(X, C, assign, N, K, max_iter, eps, block_size, use_gpu_update,
-                &iters, &sse, &time_h2d, &time_d2h, &time_kernel);
+    kmeans_mpi(X_all, C, assign_all, N, K, max_iter, eps, rank, size,
+               &iters, &sse, &time_total, &time_comm);
 
-    clock_t t1 = clock();
-    double time_total = 1000.0 * (double)(t1 - t0) / (double)CLOCKS_PER_SEC;
-
-    // Imprimir resultados (formato similar ao original)
-    printf("K-means 1D (CUDA)\n");
-    printf("N=%d K=%d max_iter=%d eps=%g\n", N, K, max_iter, eps);
-    printf("Block size=%d | Update mode=%s\n", block_size, use_gpu_update ? "GPU" : "CPU");
-    printf("Iteracoes: %d | SSE final: %.6f | Tempo: %.1f ms\n", iters, sse, time_total);
-    printf("  H2D: %.3f ms | Kernels: %.3f ms | D2H: %.3f ms\n",
-           time_h2d, time_kernel, time_d2h);
-
-    // Salvar assignments e centróides
-    write_assign_csv(outAssign, assign, N);
-    write_centroids_csv(outCentroid, C, K);
-
-    // Salvar resultados (formato compatível com Etapa 0)
-    if (outResults)
+    // Apenas rank 0 imprime resultados e salva arquivos
+    if (rank == 0)
     {
-        FILE *f_results = fopen(outResults, "a");
-        if (f_results)
+        double time_comp = time_total - time_comm;
+        double comm_ratio = (time_comm / time_total) * 100.0;
+
+        printf("K-means 1D (MPI)\n");
+        printf("N=%d K=%d max_iter=%d eps=%g\n", N, K, max_iter, eps);
+        printf("Processos MPI: %d\n", size);
+        printf("Iteracoes: %d | SSE final: %.6f\n", iters, sse);
+        printf("Tempo total: %.3f ms\n", time_total);
+        printf("  Computacao: %.3f ms (%.1f%%)\n", time_comp, 100.0 - comm_ratio);
+        printf("  Comunicacao: %.3f ms (%.1f%%)\n", time_comm, comm_ratio);
+
+        // Salvar assignments e centróides
+        write_assign_csv(outAssign, assign_all, N);
+        write_centroids_csv(outCentroid, C, K);
+
+        // Salvar resultados em CSV
+        if (outResults)
         {
-            // Verificar se precisa escrever cabeçalho
-            fseek(f_results, 0, SEEK_END);
-            if (ftell(f_results) == 0)
+            FILE *f = fopen(outResults, "a");
+            if (f)
             {
-                fprintf(f_results, "Configuracao,N,K,Iteracoes,SSE,Tempo(ms),BlockSize,UpdateMode,TimeH2D,TimeKernel,TimeD2H\n");
+                fseek(f, 0, SEEK_END);
+                if (ftell(f) == 0)
+                {
+                    fprintf(f, "Configuracao,N,K,P,Iteracoes,SSE,TempoTotal(ms),TempoComp(ms),TempoComm(ms),CommRatio(%%)\n");
+                }
+                fprintf(f, "MPI,%d,%d,%d,%d,%.6f,%.3f,%.3f,%.3f,%.2f\n",
+                        N, K, size, iters, sse, time_total, time_comp, time_comm, comm_ratio);
+                fclose(f);
+                printf("Resultados salvos em %s\n", outResults);
             }
-            fprintf(f_results, "CUDA,%d,%d,%d,%.6f,%.1f,%d,%s,%.3f,%.3f,%.3f\n",
-                    N, K, iters, sse, time_total, block_size,
-                    use_gpu_update ? "GPU" : "CPU",
-                    time_h2d, time_kernel, time_d2h);
-            fclose(f_results);
-            printf("Resultados salvos em %s\n", outResults);
         }
-        else
-        {
-            fprintf(stderr, "Erro ao salvar resultados em %s\n", outResults);
-        }
+
+        free(X_all);
+        free(assign_all);
     }
 
-    free(assign);
-    free(X);
     free(C);
 
+    MPI_Finalize();
     return 0;
 }
