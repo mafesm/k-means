@@ -1,8 +1,6 @@
 # README - Projeto PCD: K-means 1D 
 
-Implementação do algoritmo de k-means implementação serial, pararelização com OpenMP, CUDA e MPI (uitlizando a implementação OpenMPI)
-
-Nesse repositório pode ser encontrado diferentes implementações do algoritmo `k-means` nos seguintes paradigmas: **Serial**, **OpenMP**, **CUDA** e **MPI**
+Nesse repositório pode ser encontrado diferentes implementações do algoritmo de `k-means` nos seguintes paradigmas: **Serial**, **OpenMP**, **CUDA** e **MPI**
 
 ## Criação de um ambiente virtual Python
 Utilizamos Python no desenvolvimento do trabalho para geração de gráficos e dados para execução das diferentes baterias de teste.
