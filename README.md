@@ -1,4 +1,4 @@
-# README - Projeto PCD: K-means 1D 
+# Projeto PCD: K-means 1D 
 
 Nesse repositório pode ser encontrado diferentes implementações do algoritmo de `k-means` nos seguintes paradigmas: **Serial**, **OpenMP**, **CUDA** e **MPI**
 
