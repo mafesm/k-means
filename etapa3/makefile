@@ -67,7 +67,7 @@ teste_grande: $(PROG) dados_grandes
 	mpirun -np 8 ./$(PROG) $(RESULTS_DIR)/dados_1M.csv $(RESULTS_DIR)/centroides_16.csv 100 1e-6 $(RESULTS_DIR)/assign_p8.csv $(RESULTS_DIR)/centros_p8.csv $(RESULTS_DIR)/resultados_desempenho.csv
 
 
-teste_tudo: $(PROG) dados_todos
+teste_todos: $(PROG) dados_todos
 	@echo ">> === TESTE COMPLETO MPI ==="
 	@rm -f $(RESULTS_DIR)/resultados_desempenho.csv
 	@echo ""
@@ -95,7 +95,7 @@ teste_tudo: $(PROG) dados_todos
 	@echo ">> Teste completo!"
 
 # ajustado para máquinas com 4 cores (usa --oversubscribe para P=8)
-# teste_tudo: $(PROG) dados_todos
+# teste_todos: $(PROG) dados_todos
 # 	@echo ">> === TESTE COMPLETO MPI ==="
 # 	@rm -f $(RESULTS_DIR)/resultados_desempenho.csv
 # 	@echo ""
@@ -147,7 +147,7 @@ graficos:
 	python3 ./scripts/grafsmpi.py
 
 # Relatório completo
-relatorio: teste_tudo graficos
+relatorio: teste_todos graficos
 	@echo ">> Relatório completo gerado"
 
 # Limpar
@@ -160,4 +160,4 @@ cleanall: clean
 	@rm -rf $(RESULTS_DIR)
 	@echo ">> Tudo limpo"
 
-.PHONY: clean cleanall teste dados_todos graficos relatorio teste_tudo teste_medio teste_grande
+.PHONY: clean cleanall teste dados_todos graficos relatorio teste_todos teste_medio teste_grande
