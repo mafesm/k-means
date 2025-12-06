@@ -1,6 +1,14 @@
 # README - Projeto PCD: K-means 1D 
 
-No momento, foram implementadas as três primeiras etapas do projeto: implementação serial, pararelização com OpenMP e CUDA.
+Implementação do algoritmo de k-means implementação serial, pararelização com OpenMP, CUDA e MPI (uitlizando a implementação OpenMPI)
+
+## Criação de um ambiente virtual Python
+Utilizamos Python no desenvolvimento do trabalho para geração de gráficos e dados para execução das diferentes baterias de teste.
+Para criar um ambiente virtual python, junto com as dependências necessárias, execute os seguintes comandos na raiz do projeto:
+```bash
+python3 -m venv venv
+pip install -r requirements.txt
+```
 
 ## Compilação
 
@@ -20,6 +28,12 @@ cd openmp
 ```bash
 cd cuda
 ```
+
+- MPI:
+```bash
+cd mpi
+```
+
 Posteriormente, a compilação segue igualmente utlizando as diretivas abaixo: 
 
 ```bash
