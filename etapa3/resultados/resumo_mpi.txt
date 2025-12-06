@@ -1,0 +1,24 @@
+RESUMO DOS RESULTADOS - ETAPA 3 (MPI)
+================================================================================
+
+Dataset Pequeno (N=10k, K=4)
+--------------------------------------------------------------------------------
+  P= 1: Tempo=   2.44ms | Speedup= 1.00× | Eficiência=100.0% | Comunicação= 10.8%
+  P= 2: Tempo=   1.82ms | Speedup= 1.34× | Eficiência= 67.0% | Comunicação= 54.1%
+  P= 4: Tempo=  58.88ms | Speedup= 0.04× | Eficiência=  1.0% | Comunicação=112.3%
+  P= 8: Tempo=  69.77ms | Speedup= 0.03× | Eficiência=  0.4% | Comunicação=117.8%
+
+Dataset Médio (N=100k, K=8)
+--------------------------------------------------------------------------------
+  P= 1: Tempo=  28.27ms | Speedup= 1.00× | Eficiência=100.0% | Comunicação=  9.8%
+  P= 2: Tempo=  13.84ms | Speedup= 2.04× | Eficiência=102.1% | Comunicação= 20.0%
+  P= 4: Tempo=  42.38ms | Speedup= 0.67× | Eficiência= 16.7% | Comunicação= 94.0%
+  P= 8: Tempo= 287.27ms | Speedup= 0.10× | Eficiência=  1.2% | Comunicação=133.4%
+
+Dataset Grande (N=1M, K=16)
+--------------------------------------------------------------------------------
+  P= 1: Tempo=2232.20ms | Speedup= 1.00× | Eficiência=100.0% | Comunicação=  1.4%
+  P= 2: Tempo=1149.44ms | Speedup= 1.94× | Eficiência= 97.1% | Comunicação=  5.8%
+  P= 4: Tempo= 922.38ms | Speedup= 2.42× | Eficiência= 60.5% | Comunicação= 28.5%
+  P= 8: Tempo=1044.92ms | Speedup= 2.14× | Eficiência= 26.7% | Comunicação= 44.7%
+
