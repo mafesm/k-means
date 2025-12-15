@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Script de validação de corretude para K-means 1D com OpenMP
-Gera gráficos de visualização dos clusters e análises detalhadas
-"""
-
 import sys
 import csv
 import os
