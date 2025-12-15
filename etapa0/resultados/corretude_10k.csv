@@ -1,0 +1,2 @@
+N,K,SSE_computed,clusters_vazios,cluster_min_size,cluster_max_size,assignment_errors,total_errors,total_warnings,status
+10000,4,5602287.147112025,0,1241,5000,0,0,0,CORRETO
