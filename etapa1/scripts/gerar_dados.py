@@ -28,16 +28,16 @@ def gerar_dados(n_total, k, output_dados, output_centroides):
     dados = np.array(dados)
     np.random.shuffle(dados)
     
-    # Salvar dados (com 1 casa decimal)
     with open(output_dados, 'w') as f:
+        f.write("X\n")  # ADICIONAR HEADER
         for valor in dados:
             f.write(f"{valor:.1f}\n")
     
-    # Salvar centroides iniciais (com 1 casa decimal)
     indices_centroides = np.random.choice(len(dados), k, replace=False)
     centroides_iniciais = dados[indices_centroides]
     
     with open(output_centroides, 'w') as f:
+        f.write("centroide\n")  # ADICIONAR HEADER
         for valor in centroides_iniciais:
             f.write(f"{valor:.1f}\n")
     
@@ -46,7 +46,7 @@ def gerar_dados(n_total, k, output_dados, output_centroides):
 
 if __name__ == "__main__":
     if len(sys.argv) != 5:
-        print("Uso: python gerar_dados.py <n_total> <k> <output_dados> <output_centroides>")
+        print("Uso: python gerar_dados.py <n> <k> <output_dados> <output_centroides>")
         sys.exit(1)
     
     n_total = int(sys.argv[1])
