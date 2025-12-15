@@ -1,5 +1,4 @@
-# Makefile para K-means 1D Sequencial - Etapa 0 + Corretude
-# Adaptado para incluir verificação de corretude separadamente
+# Makefile para K-means 1D Sequencial - Etapa 0 
 
 CC = gcc
 CFLAGS = -O2 -std=c99 -lm
@@ -32,9 +31,6 @@ dados_grandes: $(RESULTS_DIR)
 dados_todos: dados_pequenos dados_medios dados_grandes
 	@echo " >> todos os dados de teste gerados"
 
-# ========================================================================
-# TESTES
-# ========================================================================
 
 teste_original: $(PROG) $(RESULTS_DIR)
 	@echo " >> exe teste original com dados_iniciais.csv e centroides_iniciais.csv..."
@@ -82,9 +78,6 @@ graficos:
 	@echo " >> gerando graficos a partir dos resultados..."
 	$(PYTHON) ./scripts/gerar_graficos.py
 
-# ========================================================================
-# RELATÓRIO (SEM CORRETUDE)
-# ========================================================================
 
 relatorio: $(PROG) dados_todos teste_todos graficos
 	@echo " >> relatorio completo gerado"
